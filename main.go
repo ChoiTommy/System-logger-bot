@@ -1,5 +1,5 @@
 package main
-
+import "log"
 func main() {
-  simple_new_msg()
+  log.Print("No module is loaded.")
 }

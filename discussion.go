@@ -7,45 +7,28 @@ package main
 import (
 	"log"
   "strings"
-  "net/http"
-	"github.com/go-telegram-bot-api/telegram-bot-api"
   "os"
+	"github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 var inlineButton_Reply = tgbotapi.NewInlineKeyboardMarkup(
 	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonURL("Join discussion","https://t.me/kaito_bot"),
+		tgbotapi.NewInlineKeyboardButtonURL("Join discussion","https://t.me/system_logger_bot"),
 	),
 )
 
-func main_reply() {
+func discussion() {
   CHANNEL_NAME := os.Getenv("CHANNEL_NAME")
-  token := os.Getenv("TOKEN")
-	bot, err := tgbotapi.NewBotAPI(token)
-	if err != nil {
-		log.Fatal(err)
-	}
+  bot := authorization()
 	//bot.Debug = true
-	log.Printf("Authorized on account %s", bot.Self.UserName)
-	_, err = bot.SetWebhook(tgbotapi.NewWebhook("https://System-logger-bot.kaitojjj.repl.co:443/"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	info, err := bot.GetWebhookInfo()
-	if err != nil {
-		log.Fatal(err)
-	}
-	if info.LastErrorDate != 0 {
-		log.Printf("Telegram callback failed: %s", info.LastErrorMessage)
-	}
-	updates := bot.ListenForWebhook("/")
-	go http.ListenAndServe("0.0.0.0:8443", nil)
+
+	updates := configure_webhook(bot)
 
   messageText := QUESTION_REPLY + INSTRUCTION_REPLY
   msg := tgbotapi.NewMessageToChannel(CHANNEL_NAME, messageText)
   msg.ParseMode = tgbotapi.ModeHTML
   msg.ReplyMarkup = inlineButton_Reply
-  message, err := bot.Send(msg)
+  message, _ := bot.Send(msg)
   log.Printf("Sent")
 
   counter := 0
