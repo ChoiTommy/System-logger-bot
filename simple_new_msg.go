@@ -13,7 +13,6 @@ func simple_new_msg() {
 
 	bot := authorization()
 	//bot.Debug = true
-
 	updates := configure_webhook(bot)
 
 	for update := range updates {

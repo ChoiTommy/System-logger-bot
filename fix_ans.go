@@ -9,16 +9,15 @@ import (
 
 var inlineButtonQuiz = tgbotapi.NewInlineKeyboardMarkup(
 	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonURL("Give it a try","https://t.me/kaito_bot"),
+		tgbotapi.NewInlineKeyboardButtonURL("Give it a try","https://t.me/system_logger_bot"),
 	),
 )
 
-const IMAGE_PATH="image.png"
+const IMAGE_PATH="Resources/image.png"
 
 func quiz() {
 	bot := authorization()
 	//bot.Debug = true
-	
 	updates := configure_webhook(bot)
 	
 	channelid, _ := strconv.ParseInt(os.Getenv("CHANNEL_ID"), 10, 64)

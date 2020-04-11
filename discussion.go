@@ -21,7 +21,6 @@ func discussion() {
   CHANNEL_NAME := os.Getenv("CHANNEL_NAME")
   bot := authorization()
 	//bot.Debug = true
-
 	updates := configure_webhook(bot)
 
   messageText := QUESTION_REPLY + INSTRUCTION_REPLY
