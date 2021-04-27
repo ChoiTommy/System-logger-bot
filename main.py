@@ -7,7 +7,7 @@
 
 import logging, os
 
-from telegram import Update, ForceReply, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Updater, CommandHandler, MessageHandler, ConversationHandler, Filters, CallbackContext
 from dotenv import load_dotenv
 
@@ -23,10 +23,8 @@ BOT_TOKEN = os.getenv('BOT_TOKEN')
 MY_USERNAME = os.getenv('MY_TG_HANDLE')
 MY_CHANNEL_ID = os.getenv('MY_CHANNEL_ID')
 
-
 def authentication(update: Update) -> bool:
     return update.effective_user.username == MY_USERNAME
-
 
 def ask_for_text(update: Update, context: CallbackContext) -> int:
     if authentication(update) == False:
@@ -52,7 +50,7 @@ def confirmation(update: Update, context: CallbackContext) -> int:
     context.user_data['PHOTO'] = photo[0] if photo else None
 
     if context.user_data['WITH_PHOTO']:
-        context.bot.send_photo(update.message.chat.id, context.user_data['PHOTO'], caption=context.user_data['TEXT'])
+        update.message.reply_photo(context.user_data['PHOTO'], caption=context.user_data['TEXT'])
     else:
         update.message.reply_text(context.user_data['TEXT'])
     
