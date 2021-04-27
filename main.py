@@ -9,7 +9,7 @@ import logging, os
 
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Updater, CommandHandler, MessageHandler, ConversationHandler, Filters, CallbackContext
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
 # Enable logging
 logging.basicConfig(
@@ -18,7 +18,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-load_dotenv()
+# load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 MY_USERNAME = os.getenv('MY_TG_HANDLE')
 MY_CHANNEL_ID = os.getenv('MY_CHANNEL_ID')
@@ -53,7 +53,7 @@ def confirmation(update: Update, context: CallbackContext) -> int:
         update.message.reply_photo(context.user_data['PHOTO'], caption=context.user_data['TEXT'])
     else:
         update.message.reply_text(context.user_data['TEXT'])
-    
+
     update.message.reply_text(
         '❓The above message is going to be posted in the channel. Are you sure you want to do so?',
         reply_markup = ReplyKeyboardMarkup([['Yes', 'No']], resize_keyboard = True)
