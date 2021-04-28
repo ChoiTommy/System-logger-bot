@@ -2,6 +2,7 @@
  References
  https://github.com/python-telegram-bot/python-telegram-bot/tree/master/examples
  https://python-telegram-bot.readthedocs.io/en/stable/index.html
+ https://github.com/python-telegram-bot/python-telegram-bot/wiki/Webhooks#heroku
 '''
 # TODO drafting function, multiple photo attachments, text formatting
 
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 MY_USERNAME = os.getenv('MY_TG_HANDLE')
 MY_CHANNEL_ID = os.getenv('MY_CHANNEL_ID')
+PORT = os.getenv('PORT')
 
 def authentication(update: Update) -> bool:
     return update.effective_user.username == MY_USERNAME
@@ -31,16 +33,27 @@ def ask_for_text(update: Update, context: CallbackContext) -> int:
         update.message.reply_text('⛔️You are not allowed to use this command.')
         return ConversationHandler.END
     else:
-        update.message.reply_text(f'Welcome back, {update.effective_user.first_name}.')
-        update.message.reply_text('🗒What would you like to post? Type in and send your text in the textbox right below.\nType /cancel at any time to stop the process.')
-        return 0
+        update.message.reply_text(f'Welcome back, {update.effective_user.first_name}.\nFeel free to type /cancel at any time to stop the process.')
+        update.message.reply_text(
+            '🗒What would you like to post? Type in and send your text to me. To create a post without text, click the button below.',
+            reply_markup = ReplyKeyboardMarkup([['Post without text']], resize_keyboard = True)
+        )
+    return 0
 
-def ask_for_photo(update: Update, context: CallbackContext) -> int:
+def ask_for_photo_without_text(update: Update, context: CallbackContext) -> int:
+    context.user_data['TEXT'] = ''
+    update.message.reply_text(
+        '📸Now send me a photo that you wanna post.',
+        reply_markup = ReplyKeyboardRemove()
+    )
+    return 2
+
+def ask_for_photo_with_text(update: Update, context: CallbackContext) -> int:
     text = update.message.text
     context.user_data['TEXT'] = text
     update.message.reply_text(
         '📸Now send me a photo if you wish to. Otherwise click the button below to skip this step.',
-        reply_markup = ReplyKeyboardMarkup([['None']], resize_keyboard = True)
+        reply_markup = ReplyKeyboardMarkup([['Post without images']], resize_keyboard = True)
     )
     return 1
 
@@ -58,7 +71,7 @@ def confirmation(update: Update, context: CallbackContext) -> int:
         '❓The above message is going to be posted in the channel. Are you sure you want to do so?',
         reply_markup = ReplyKeyboardMarkup([['Yes', 'No']], resize_keyboard = True)
     )
-    return 2
+    return 3
 
 def send(update: Update, context: CallbackContext) -> int:
     choice = update.message.text
@@ -67,7 +80,6 @@ def send(update: Update, context: CallbackContext) -> int:
             context.bot.send_photo(MY_CHANNEL_ID, context.user_data['PHOTO'], caption=context.user_data['TEXT'])
         else:
             context.bot.send_message(MY_CHANNEL_ID, context.user_data['TEXT'])
-
         update.message.reply_text('✅Sent successfully.', reply_markup=ReplyKeyboardRemove(), disable_notification=True)
     else:
         update.message.reply_text('🗑Message discarded. Type /new to post again.', reply_markup=ReplyKeyboardRemove())
@@ -82,7 +94,6 @@ def cancel(update: Update, context: CallbackContext) -> int:
 def main() -> None:
     """Start the bot."""
     # Create the Updater and pass it your bot's token.
-    # print(BOT_TOKEN)
     updater = Updater(BOT_TOKEN)
 
     # Get the dispatcher to register handlers
@@ -92,9 +103,10 @@ def main() -> None:
     new_post_handler = ConversationHandler(
         entry_points = [CommandHandler("new", ask_for_text)],
         states = { # dict
-            0: [MessageHandler(Filters.text & ~Filters.command, ask_for_photo)],
-            1: [MessageHandler(Filters.photo | Filters.regex('^None$'), confirmation)],
-            2: [MessageHandler(Filters.regex('^Yes$') | Filters.regex('^No$'), send)]
+            0: [MessageHandler(Filters.regex('^Post without text$'), ask_for_photo_without_text), MessageHandler(Filters.text & ~Filters.command, ask_for_photo_with_text)],
+            1: [MessageHandler(Filters.photo | Filters.regex('^Post without images$'), confirmation)],
+            2: [MessageHandler(Filters.photo, confirmation)],
+            3: [MessageHandler(Filters.regex('^Yes$') | Filters.regex('^No$'), send)]
         },
         fallbacks = [CommandHandler('cancel', cancel)],
         conversation_timeout = 300 # 5 mins
@@ -102,13 +114,19 @@ def main() -> None:
 
     dispatcher.add_handler(new_post_handler)
 
+    updater.start_webhook(listen = "0.0.0.0",
+                      port = PORT,
+                      url_path = BOT_TOKEN,
+                      webhook_url = "https://system-logger-bot.herokuapp.com/" + BOT_TOKEN)
+    updater.idle()
+
     # Start the Bot
-    updater.start_polling()
+    # updater.start_polling()
 
     # Run the bot until you press Ctrl-C or the process receives SIGINT,
     # SIGTERM or SIGABRT. This should be used most of the time, since
     # start_polling() is non-blocking and will stop the bot gracefully.
-    updater.idle()
+    # updater.idle()
 
 if __name__ == '__main__':
     main()
