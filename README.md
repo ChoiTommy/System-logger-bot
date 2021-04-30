@@ -11,8 +11,6 @@ Features:
 
 ## Quick Start
 
----
-
 ### Setup
 
 It is only compatible with Python versions 3.6+. Make sure a proper version of Python is installed.
