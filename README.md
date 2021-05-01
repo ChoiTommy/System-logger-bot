@@ -15,7 +15,7 @@ Features:
 
 It is only compatible with Python versions 3.6+. Make sure a proper version of Python is installed.
 
-The proceed to install [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot) with:
+Then proceed to install [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot) with:
 
 ```bash
 $ pip install python-telegram-bot

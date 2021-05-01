@@ -15,7 +15,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, ConversationHa
 
 # Enable logging
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level = logging.INFO
 )
 
 logger = logging.getLogger(__name__)
@@ -27,9 +27,9 @@ MY_CHANNEL_ID = os.getenv('MY_CHANNEL_ID')
 MY_ID = os.getenv('MY_ID')
 PORT = os.getenv('PORT')
 
-keyboard = [[InlineKeyboardButton("✔", callback_data='1'), InlineKeyboardButton("❌", callback_data='0')]]
-approved_keyboard = [[InlineKeyboardButton("✅Approved and posted", callback_data='-1')]]
-rejected_keyboard = [[InlineKeyboardButton("❌Rejected", callback_data='-1')]]
+keyboard = [[InlineKeyboardButton("✔", callback_data = '1'), InlineKeyboardButton("❌", callback_data = '0')]]
+approved_keyboard = [[InlineKeyboardButton("✅Approved and posted", callback_data = '-1')]]
+rejected_keyboard = [[InlineKeyboardButton("❌Rejected", callback_data = '-1')]]
 about_keyboard = [[InlineKeyboardButton("Github", url='https://github.com/ChoiTommy/System-logger-bot')]]
 emoji_list = ["👍", "😲", "🤨", "🤬"]
 reaction_callback_data_list = ['1000', '1001', '1002', '1003']
@@ -85,7 +85,7 @@ def include_reactions(update: Update, context: CallbackContext) -> int:
     context.user_data['WITH_PHOTO'] = False if not photo else True
     context.user_data['PHOTO'] = photo[0] if photo else None
     update.message.reply_text(
-        '♥Do you want to append reaction buttons to this post? Select the buttons below.',
+        '❤Do you want to append reaction buttons to this post? Select the buttons below.',
         reply_markup = ReplyKeyboardMarkup([['Yes', 'No']], resize_keyboard = True)
     )
     return 3
@@ -211,12 +211,14 @@ def inline_buttons(update: Update, _: CallbackContext) -> None:
 
     # CallbackQueries need to be answered, even if no notification to the user is needed
     query.answer()
-    if query.data == '1':
-        query.edit_message_reply_markup(reply_markup = InlineKeyboardMarkup(approved_keyboard))
+    if query.data == '-1':
+        return
+    elif query.data == '1':
         query.copy_message(MY_CHANNEL_ID, reply_markup = InlineKeyboardMarkup(reactions_keyboard), disable_notification = True)
+        query.edit_message_reply_markup(reply_markup = InlineKeyboardMarkup(approved_keyboard))
     elif query.data == '0':
         query.edit_message_reply_markup(reply_markup = InlineKeyboardMarkup(rejected_keyboard))
-    elif query.data in reaction_callback_data_list:
+    elif query.data in reaction_callback_data_list:       # ['1000', '1001', '1002', '1003']
         keyboard = query.message.reply_markup.inline_keyboard
         number = int(keyboard[0][int(query.data)-1000].text[2::]) + 1
         keyboard[0][int(query.data)-1000].text = f'{emoji_list[int(query.data)-1000]} {number}'
