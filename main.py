@@ -5,7 +5,7 @@
  https://github.com/python-telegram-bot/python-telegram-bot/wiki/Webhooks#heroku
  https://github.com/python-telegram-bot/python-telegram-bot/blob/master/examples/inlinekeyboard.py
 '''
-# TODO drafting function, multiple photo attachments, feedback to approved or rejected posts
+# TODO drafting function, multiple photo attachments
 
 import logging, os
 
@@ -27,7 +27,7 @@ MY_CHANNEL_ID = os.getenv('MY_CHANNEL_ID')
 MY_ID = os.getenv('MY_ID')
 PORT = os.getenv('PORT')
 
-keyboard = [[InlineKeyboardButton("✔", callback_data = '1'), InlineKeyboardButton("❌", callback_data = '0')]]
+keyboard = [[InlineKeyboardButton("✔", callback_data = '1'), InlineKeyboardButton("❌", callback_data = '0')], [InlineKeyboardButton("", callback_data = '-1')], [InlineKeyboardButton("", callback_data = '-1')]]
 approved_keyboard = [[InlineKeyboardButton("✅Approved and posted", callback_data = '-1')]]
 rejected_keyboard = [[InlineKeyboardButton("❌Rejected", callback_data = '-1')]]
 about_keyboard = [[InlineKeyboardButton("Github", url='https://github.com/ChoiTommy/System-logger-bot')]]
@@ -156,19 +156,22 @@ def submission_confirmation(update: Update, context: CallbackContext) -> int:
     context.user_data['PHOTO'] = photo[0] if photo else None
     context.user_data['TEXT'] = f"{context.user_data['TEXT']}\n - {update.effective_user.first_name} {'' if update.effective_user.last_name == None else update.effective_user.last_name }"
 
+    # Post preview
     if context.user_data['WITH_PHOTO']:
-        update.message.reply_photo(
+        preview = update.message.reply_photo(
             context.user_data['PHOTO'],
             caption = context.user_data['TEXT'],
             reply_markup = InlineKeyboardMarkup(reactions_keyboard_for_display),
             caption_entities = context.user_data['ENTITIES']
         )
     else:
-        update.message.reply_text(
+        preview = update.message.reply_text(
             context.user_data['TEXT'],
             reply_markup = InlineKeyboardMarkup(reactions_keyboard_for_display),
             entities = context.user_data['ENTITIES']
         )
+    context.user_data['PREVIEW_MSG_ID'] = preview.message_id
+    context.user_data['CHAT_ID'] = preview.chat.id
     update.message.reply_text(
         '❓The above message is going to be sent to the channel owner for approval. Are you sure you want to do so?',
         reply_markup = ReplyKeyboardMarkup([['Yes', 'No']], resize_keyboard = True)
@@ -178,22 +181,27 @@ def submission_confirmation(update: Update, context: CallbackContext) -> int:
 def send_to_owner(update: Update, context: CallbackContext) -> int:
     choice = update.message.text
     if choice == 'Yes':
+        key = keyboard
+        key[1][0].text = context.user_data['PREVIEW_MSG_ID']
+        key[2][0].text = context.user_data['CHAT_ID']
         if context.user_data['WITH_PHOTO']:
             context.bot.send_photo(
                 MY_ID,
                 context.user_data['PHOTO'],
                 caption = context.user_data['TEXT'],
-                reply_markup = InlineKeyboardMarkup(keyboard),
+                reply_markup = InlineKeyboardMarkup(key),
                 caption_entities = context.user_data['ENTITIES']
             )
         else:
             context.bot.send_message(
                 MY_ID,
                 context.user_data['TEXT'],
-                reply_markup = InlineKeyboardMarkup(keyboard),
-                entities = context.user_data['ENTITIES']
+                reply_markup = InlineKeyboardMarkup(key),
+                entities = context.user_data['ENTITIES'],
+                disable_web_page_preview = False
             )
-        update.message.reply_text('✅Sent successfully. If your post is approved, it will appear in the channel. Stay tuned!',
+        update.message.reply_text(
+            '✅Sent successfully. The reaction buttons above will be replaced when your post has been approved/rejected. Stay tuned!',
             reply_markup = ReplyKeyboardRemove()
         )
     else:
@@ -206,7 +214,7 @@ def cancel(update: Update, context: CallbackContext) -> int:
     context.user_data.clear()
     return ConversationHandler.END
 
-def inline_buttons(update: Update, _: CallbackContext) -> None:
+def inline_buttons(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
 
     # CallbackQueries need to be answered, even if no notification to the user is needed
@@ -214,15 +222,25 @@ def inline_buttons(update: Update, _: CallbackContext) -> None:
     if query.data == '-1':
         return
     elif query.data == '1':
+        context.bot.edit_message_reply_markup(
+            chat_id = int(query.message.reply_markup.inline_keyboard[2][0].text),
+            message_id = int(query.message.reply_markup.inline_keyboard[1][0].text),
+            reply_markup = InlineKeyboardMarkup(approved_keyboard)
+        )
         query.copy_message(MY_CHANNEL_ID, reply_markup = InlineKeyboardMarkup(reactions_keyboard), disable_notification = True)
         query.edit_message_reply_markup(reply_markup = InlineKeyboardMarkup(approved_keyboard))
     elif query.data == '0':
+        context.bot.edit_message_reply_markup(
+            chat_id = int(query.message.reply_markup.inline_keyboard[2][0].text),
+            message_id = int(query.message.reply_markup.inline_keyboard[1][0].text),
+            reply_markup = InlineKeyboardMarkup(rejected_keyboard)
+        )
         query.edit_message_reply_markup(reply_markup = InlineKeyboardMarkup(rejected_keyboard))
     elif query.data in reaction_callback_data_list:       # ['1000', '1001', '1002', '1003']
-        keyboard = query.message.reply_markup.inline_keyboard
-        number = int(keyboard[0][int(query.data)-1000].text[2::]) + 1
-        keyboard[0][int(query.data)-1000].text = f'{emoji_list[int(query.data)-1000]} {number}'
-        query.edit_message_reply_markup(InlineKeyboardMarkup(keyboard))
+        emoji_keyboard = query.message.reply_markup.inline_keyboard
+        number = int(emoji_keyboard[0][int(query.data)-1000].text[2::]) + 1
+        emoji_keyboard[0][int(query.data)-1000].text = f'{emoji_list[int(query.data)-1000]} {number}'
+        query.edit_message_reply_markup(InlineKeyboardMarkup(emoji_keyboard))
 
 def about(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(
