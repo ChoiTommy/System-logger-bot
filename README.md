@@ -5,6 +5,7 @@ Features:
 
 - Post submission for channel owner (with or without image, text, reaction buttons)
 - Post submission for outsiders (with or without image, text)
+- Post submission with forwarded messages
 - Text supports formatting features
 - Approval for post submissions from outsiders
 - Reactions number counts

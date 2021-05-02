@@ -5,7 +5,7 @@
  https://github.com/python-telegram-bot/python-telegram-bot/wiki/Webhooks#heroku
  https://github.com/python-telegram-bot/python-telegram-bot/blob/master/examples/inlinekeyboard.py
 '''
-# TODO drafting function, multiple photo attachments
+# TODO drafting function, multiple photo attachments, divide this program into several files (e.g. constants.py, ...)
 
 import logging, os
 
@@ -28,6 +28,7 @@ MY_ID = os.getenv('MY_ID')
 PORT = os.getenv('PORT')
 
 keyboard = [[InlineKeyboardButton("✔", callback_data = '1'), InlineKeyboardButton("❌", callback_data = '0')], [InlineKeyboardButton("", callback_data = '-1')], [InlineKeyboardButton("", callback_data = '-1')]]
+forward_approval_keyboard = [[InlineKeyboardButton("✔", callback_data = '101'), InlineKeyboardButton("❌", callback_data = '100')]]
 approved_keyboard = [[InlineKeyboardButton("✅Approved and posted", callback_data = '-1')]]
 rejected_keyboard = [[InlineKeyboardButton("❌Rejected", callback_data = '-1')]]
 about_keyboard = [[InlineKeyboardButton("Github", url='https://github.com/ChoiTommy/System-logger-bot')]]
@@ -131,7 +132,7 @@ def send(update: Update, context: CallbackContext) -> int:
                 entities = context.user_data['ENTITIES'],
                 disable_notification = True
             )
-        update.message.reply_text('✅Sent successfully.', reply_markup = ReplyKeyboardRemove(), disable_notification = True)
+        update.message.reply_text('✅Sent successfully.', reply_markup = ReplyKeyboardRemove())
     else:
         update.message.reply_text('🗑Message discarded. Type /new to post again.', reply_markup = ReplyKeyboardRemove())
     context.user_data.clear()
@@ -236,11 +237,76 @@ def inline_buttons(update: Update, context: CallbackContext) -> None:
             reply_markup = InlineKeyboardMarkup(rejected_keyboard)
         )
         query.edit_message_reply_markup(reply_markup = InlineKeyboardMarkup(rejected_keyboard))
+    elif query.data == '101':
+        context.bot.forward_message(
+            chat_id = MY_CHANNEL_ID,
+            from_chat_id = query.message.reply_to_message.chat.id,
+            message_id = query.message.reply_to_message.message_id,
+            disable_notification = True
+        )
+        query.edit_message_reply_markup(reply_markup = InlineKeyboardMarkup(approved_keyboard))
+    elif query.data == '100':
+        query.edit_message_reply_markup(reply_markup = InlineKeyboardMarkup(rejected_keyboard))
     elif query.data in reaction_callback_data_list:       # ['1000', '1001', '1002', '1003']
         emoji_keyboard = query.message.reply_markup.inline_keyboard
         number = int(emoji_keyboard[0][int(query.data)-1000].text[2::]) + 1
         emoji_keyboard[0][int(query.data)-1000].text = f'{emoji_list[int(query.data)-1000]} {number}'
         query.edit_message_reply_markup(InlineKeyboardMarkup(emoji_keyboard))
+
+def confirmation_for_forwarded_msg(update: Update, context: CallbackContext) -> int:
+    context.user_data['FORWARDED_MSG'] = update.message
+    if authentication(update):
+        update.message.reply_text(
+            '❓Do you want to forward this message to the channel?',
+            reply_markup = ReplyKeyboardMarkup([['Yes', 'No']], resize_keyboard = True)
+        )
+        return 0
+    else:
+        update.message.reply_text(
+            '❓The forwarded message is going to be sent to the channel owner for approval. Are you sure you want to do so?',
+            reply_markup = ReplyKeyboardMarkup([['Yes', 'No']], resize_keyboard = True)
+        )
+        return 1
+
+def forward_msg(update: Update, context: CallbackContext) -> int:
+    choice = update.message.text
+    if choice == 'Yes':
+        context.bot.forward_message(
+            chat_id = MY_CHANNEL_ID,
+            from_chat_id = context.user_data['FORWARDED_MSG'].chat.id,
+            message_id = context.user_data['FORWARDED_MSG'].message_id,
+            disable_notification = True
+        )
+        update.message.reply_text('✅Sent successfully.', reply_markup = ReplyKeyboardRemove())
+    else:
+        update.message.reply_text('🗑Message discarded.', reply_markup = ReplyKeyboardRemove())
+    context.user_data.clear()
+    return ConversationHandler.END
+
+def approval_for_forward_msg(update: Update, context: CallbackContext) -> int:
+    choice = update.message.text
+    if choice == 'Yes':
+        msg = context.bot.forward_message(
+            chat_id = MY_ID,
+            from_chat_id = context.user_data['FORWARDED_MSG'].chat.id,
+            message_id = context.user_data['FORWARDED_MSG'].message_id
+        )
+        context.bot.send_message(
+            MY_ID,
+            f'Submitted by [{update.effective_user.first_name}](tg://user?id={update.effective_user.id})', #
+            reply_markup = InlineKeyboardMarkup(forward_approval_keyboard),
+            reply_to_message_id = msg.message_id,
+            parse_mode = ParseMode.MARKDOWN_V2
+        )
+        update.message.reply_text(
+            '✅Sent successfully. Your post will be posted if approved. Stay tuned!',
+            reply_markup = ReplyKeyboardRemove()
+        )
+    else:
+        update.message.reply_text('🗑Message discarded.', reply_markup = ReplyKeyboardRemove())
+    context.user_data.clear()
+    return ConversationHandler.END
+
 
 def about(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(
@@ -287,6 +353,18 @@ def main() -> None:
 
     dispatcher.add_handler(submit_post_handler)
     dispatcher.add_handler(CallbackQueryHandler(inline_buttons))
+
+    # add forward message handler
+    forward_handler = ConversationHandler(
+        entry_points = [MessageHandler(Filters.forwarded, confirmation_for_forwarded_msg)],
+        states = {
+            0: [MessageHandler(Filters.regex('^Yes$') | Filters.regex('^No$'), forward_msg)],
+            1: [MessageHandler(Filters.regex('^Yes$') | Filters.regex('^No$'), approval_for_forward_msg)]
+        },
+        fallbacks = [CommandHandler('cancel', cancel)],
+        conversation_timeout = 120 # 2 mins
+    )
+    dispatcher.add_handler(forward_handler)
 
     # add handler for /about
     dispatcher.add_handler(CommandHandler('about', about))
