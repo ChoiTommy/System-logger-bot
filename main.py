@@ -7,11 +7,10 @@
 '''
 # TODO drafting function, multiple photo attachments, divide this program into several files (e.g. constants.py, ...)
 
-import logging, os, Keyboards
+import logging, os, Keyboards, time
 
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardMarkup, ParseMode
 from telegram.ext import Updater, CommandHandler, MessageHandler, ConversationHandler, Filters, CallbackContext, CallbackQueryHandler
-from datetime import datetime
 # from dotenv import load_dotenv
 
 # Enable logging
@@ -206,7 +205,7 @@ def submission_confirmation(update: Update, context: CallbackContext) -> int:
     context.user_data['PHOTO'] = photo[0] if photo else None
     context.user_data['TEXT'] = f"""{context.user_data['TEXT']}
 - {update.effective_user.first_name} {'' if update.effective_user.last_name == None else update.effective_user.last_name}
-{datetime.now().strftime('%d/%m/%Y %H:%M:%S %Z%z')}"""
+{time.strftime('%d/%m/%Y %H:%M:%S %Z%z', time.localtime())}"""
 
     if context.user_data['WITH_PHOTO']:
         preview = update.message.reply_photo(
