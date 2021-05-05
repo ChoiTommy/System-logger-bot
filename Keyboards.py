@@ -21,7 +21,11 @@ APPROVAL_KEYBOARD = [
 ]
 
 # Inline keyboard for channel owner to accept/reject forwarded post submissions (no feedback channel implemented)
-FORWARD_APPROVAL_KEYBOARD = [[InlineKeyboardButton("✔", callback_data = '101'), InlineKeyboardButton("❌", callback_data = '100')]]
+FORWARD_APPROVAL_KEYBOARD = [
+    [InlineKeyboardButton("✔", callback_data = '101'), InlineKeyboardButton("❌", callback_data = '100')],
+    [InlineKeyboardButton("", callback_data = '-1')], # these two buttons are added for saving message id and chat id for returning final decision from the owner
+    [InlineKeyboardButton("", callback_data = '-1')]
+]
 
 # Inline keyboard for displaying the final decision from the channel owner
 # No action will be performed if clicked

@@ -6,6 +6,7 @@
  https://github.com/python-telegram-bot/python-telegram-bot/blob/master/examples/inlinekeyboard.py
 '''
 # TODO drafting function, multiple photo attachments, divide this program into several files (e.g. constants.py, ...)
+# BUG no message previews for submitted posts
 
 import logging, os, Keyboards
 
@@ -82,18 +83,20 @@ def confirmation(update: Update, context: CallbackContext) -> int:
     # Send a preview of the post to the channel owner
     context.user_data['WITH_REACTIONS'] = True if update.message.text == 'Yes' else False
     if context.user_data['WITH_PHOTO']:
-        update.message.reply_photo( # Use reply_photo() for post with image
+        m = update.message.reply_photo( # Use reply_photo() for post with image
             context.user_data['PHOTO'],
             caption = context.user_data['TEXT'],
             reply_markup = InlineKeyboardMarkup(Keyboards.REACTIONS_KEYBOARD_FOR_DISPLAY) if context.user_data['WITH_REACTIONS'] else None,
             caption_entities = context.user_data['ENTITIES']
         )
     else:
-        update.message.reply_text( # Use reply_text() for post with just text
+        m = update.message.reply_text( # Use reply_text() for post with just text
             context.user_data['TEXT'],
             reply_markup = InlineKeyboardMarkup(Keyboards.REACTIONS_KEYBOARD_FOR_DISPLAY) if context.user_data['WITH_REACTIONS'] else None,
             entities = context.user_data['ENTITIES']
         )
+    context.user_data['CONFIRMATION_CHAT_ID'] = m.chat.id
+    context.user_data['CONFIRMATION_MSG_ID'] = m.message_id
     update.message.reply_text(
         '❓The above message is going to be posted in the channel. Are you sure you want to do so?',
         reply_markup = ReplyKeyboardMarkup(Keyboards.YES_NO, resize_keyboard = True)
@@ -104,23 +107,13 @@ def send(update: Update, context: CallbackContext) -> int:
     # Post the content to the channel
     choice = update.message.text
     if choice == 'Yes':
-        if context.user_data['WITH_PHOTO']:
-            context.bot.send_photo(
-                MY_CHANNEL_ID,
-                context.user_data['PHOTO'],
-                caption = context.user_data['TEXT'],
-                reply_markup = InlineKeyboardMarkup(Keyboards.REACTIONS_KEYBOARD) if context.user_data['WITH_REACTIONS'] else None,
-                caption_entities = context.user_data['ENTITIES'],
-                disable_notification = True # Slient post
-            )
-        else:
-            context.bot.send_message(
-                MY_CHANNEL_ID,
-                context.user_data['TEXT'],
-                reply_markup = InlineKeyboardMarkup(Keyboards.REACTIONS_KEYBOARD) if context.user_data['WITH_REACTIONS'] else None,
-                entities = context.user_data['ENTITIES'],
-                disable_notification = True # Slient post
-            )
+        context.bot.copy_message(
+            chat_id = MY_CHANNEL_ID,
+            from_chat_id = context.user_data['CONFIRMATION_CHAT_ID'],
+            message_id = context.user_data['CONFIRMATION_MSG_ID'],
+            reply_markup = InlineKeyboardMarkup(Keyboards.REACTIONS_KEYBOARD) if context.user_data['WITH_REACTIONS'] else None,
+            disable_notification = True # Slient post
+        )
         update.message.reply_text('✅Sent successfully.', reply_markup = ReplyKeyboardRemove())
     else:
         update.message.reply_text('🗑Message discarded. Type /new to post again.', reply_markup = ReplyKeyboardRemove())
@@ -138,6 +131,15 @@ def confirmation_for_forwarded_msg(update: Update, context: CallbackContext) -> 
         )
         return 0
     else:
+        context.user_data['FORWARDED_MSG_INFO'] =  f"""- {update.effective_user.first_name} {'' if update.effective_user.last_name == None else update.effective_user.last_name}
+{datetime.now(timezone(timedelta(hours = 8))).strftime('%d/%m/%Y %H:%M:%S %Z')}"""
+        preview = update.message.reply_text(
+            context.user_data['FORWARDED_MSG_INFO'],
+            reply_to_message_id = context.user_data['FORWARDED_MSG'].message_id,
+            reply_markup = InlineKeyboardMarkup(Keyboards.REACTIONS_KEYBOARD_FOR_DISPLAY)
+        )
+        context.user_data['PREVIEW_MSG_ID'] = preview.message_id # Save this for returning approval result to the user as well for copying
+        context.user_data['CHAT_ID'] = preview.chat.id # Save this for returning approval result to the user as well for copying
         update.message.reply_text(
             '❓The forwarded message is going to be sent to the channel owner for approval. Are you sure you want to do so?',
             reply_markup = ReplyKeyboardMarkup(Keyboards.YES_NO, resize_keyboard = True)
@@ -164,17 +166,20 @@ def approval_for_forward_msg(update: Update, context: CallbackContext) -> int:
     # Send the forwarded message to channel owner for approval
     choice = update.message.text
     if choice == 'Yes':
-        msg = context.bot.forward_message(
+        key = Keyboards.FORWARD_APPROVAL_KEYBOARD
+        key[1][0].text = context.user_data['PREVIEW_MSG_ID'] # Save the IDs into the text of the button
+        key[2][0].text = context.user_data['CHAT_ID']
+        msg = context.bot.forward_message( # the forwarded message itself
             chat_id = MY_ID,
             from_chat_id = context.user_data['FORWARDED_MSG'].chat.id,
             message_id = context.user_data['FORWARDED_MSG'].message_id
         )
-        context.bot.send_message(
-            MY_ID,
-            f'Submitted by [{update.effective_user.first_name}](tg://user?id={update.effective_user.id})', #
-            reply_markup = InlineKeyboardMarkup(Keyboards.FORWARD_APPROVAL_KEYBOARD),
-            reply_to_message_id = msg.message_id,
-            parse_mode = ParseMode.MARKDOWN_V2
+        context.bot.copy_message(
+            chat_id = MY_ID,
+            from_chat_id = context.user_data['CHAT_ID'],
+            message_id = context.user_data['PREVIEW_MSG_ID'],
+            reply_markup = InlineKeyboardMarkup(key),
+            reply_to_message_id = msg.message_id
         )
         update.message.reply_text(
             '✅Sent successfully. Your post will be posted if approved. Stay tuned!',
@@ -236,22 +241,12 @@ def send_to_owner(update: Update, context: CallbackContext) -> int:
         key = Keyboards.APPROVAL_KEYBOARD
         key[1][0].text = context.user_data['PREVIEW_MSG_ID'] # Save the IDs into the text of the button
         key[2][0].text = context.user_data['CHAT_ID']
-        if context.user_data['WITH_PHOTO']:
-            context.bot.send_photo(
-                MY_ID,
-                context.user_data['PHOTO'],
-                caption = context.user_data['TEXT'],
-                reply_markup = InlineKeyboardMarkup(key),
-                caption_entities = context.user_data['ENTITIES']
-            )
-        else:
-            context.bot.send_message(
-                MY_ID,
-                context.user_data['TEXT'],
-                reply_markup = InlineKeyboardMarkup(key),
-                entities = context.user_data['ENTITIES'],
-                disable_web_page_preview = False
-            )
+        context.bot.copy_message(
+            chat_id = MY_ID,
+            from_chat_id = context.user_data['CHAT_ID'],
+            message_id = context.user_data['PREVIEW_MSG_ID'],
+            reply_markup = InlineKeyboardMarkup(key)
+        )
         update.message.reply_text(
             '✅Sent successfully. The reaction buttons above will be replaced when your post has been approved/rejected. Stay tuned!',
             reply_markup = ReplyKeyboardRemove()
@@ -277,7 +272,7 @@ def inline_buttons(update: Update, context: CallbackContext) -> None:
         context.bot.edit_message_reply_markup( # Returning an approved feedback to the user
             chat_id = int(query.message.reply_markup.inline_keyboard[2][0].text),
             message_id = int(query.message.reply_markup.inline_keyboard[1][0].text),
-            reply_markup = InlineKeyboardMarkup(Keyboards.APPROVAL_KEYBOARD)
+            reply_markup = InlineKeyboardMarkup(Keyboards.APPROVED_KEYBOARD)
         )
         query.copy_message(MY_CHANNEL_ID, reply_markup = InlineKeyboardMarkup(Keyboards.REACTIONS_KEYBOARD), disable_notification = True)
         query.edit_message_reply_markup(reply_markup = InlineKeyboardMarkup(Keyboards.APPROVED_KEYBOARD))
@@ -289,14 +284,32 @@ def inline_buttons(update: Update, context: CallbackContext) -> None:
         )
         query.edit_message_reply_markup(reply_markup = InlineKeyboardMarkup(Keyboards.REJECTED_KEYBOARD))
     elif query.data == '101': # Approve a post submission of forwarded message
-        context.bot.forward_message(
+        m = context.bot.forward_message(
             chat_id = MY_CHANNEL_ID,
             from_chat_id = query.message.reply_to_message.chat.id,
             message_id = query.message.reply_to_message.message_id,
             disable_notification = True
         )
-        query.edit_message_reply_markup(reply_markup = InlineKeyboardMarkup(Keyboards.APPROVAL_KEYBOARD))
+        context.bot.copy_message(
+            chat_id = MY_CHANNEL_ID,
+            from_chat_id = query.message.chat.id,
+            message_id = query.message.message_id,
+            reply_to_message_id = m.message_id,
+            reply_markup = InlineKeyboardMarkup(Keyboards.REACTIONS_KEYBOARD),
+            disable_notification = True
+        )
+        context.bot.edit_message_reply_markup( # Returning an approved feedback to the user
+            chat_id = int(query.message.reply_markup.inline_keyboard[2][0].text),
+            message_id = int(query.message.reply_markup.inline_keyboard[1][0].text),
+            reply_markup = InlineKeyboardMarkup(Keyboards.APPROVED_KEYBOARD),
+        )
+        query.edit_message_reply_markup(reply_markup = InlineKeyboardMarkup(Keyboards.APPROVED_KEYBOARD))
     elif query.data == '100': # Reject a post submission of forwarded message
+        context.bot.edit_message_reply_markup( # Returning a rejected feedback to the user
+            chat_id = int(query.message.reply_markup.inline_keyboard[2][0].text),
+            message_id = int(query.message.reply_markup.inline_keyboard[1][0].text),
+            reply_markup = InlineKeyboardMarkup(Keyboards.REJECTED_KEYBOARD)
+        )
         query.edit_message_reply_markup(reply_markup = InlineKeyboardMarkup(Keyboards.REJECTED_KEYBOARD))
     elif query.data in Keyboards.REACTIONS_CALLBACK_DATA_LIST: # Increase the number count of reactions by 1
         emoji_keyboard = query.message.reply_markup.inline_keyboard
