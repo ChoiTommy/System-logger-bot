@@ -6,7 +6,7 @@
  https://github.com/python-telegram-bot/python-telegram-bot/blob/master/examples/inlinekeyboard.py
 '''
 # TODO drafting function, multiple photo attachments, divide this program into several files (e.g. constants.py, ...)
-# BUG no message previews for submitted posts
+# BUG no message previews for submitted posts due to the function copy_message()
 
 import logging, os, Keyboards
 
