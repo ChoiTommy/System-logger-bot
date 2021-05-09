@@ -38,7 +38,7 @@ def buttons_or_confirmation(update: Update, context: CallbackContext) -> int:
     else:
         if (update.message.text == None) & (update.message.caption == None) | (update.message.forward_date != None):
             text = ''
-        elif not update.message.text == None:
+        elif update.message.text != None:
             text = update.message.text
         else:
             text = update.message.caption
@@ -54,14 +54,14 @@ def buttons_or_confirmation(update: Update, context: CallbackContext) -> int:
             )
         else:
             msg_id = update.message.copy(chat_id = update.effective_message.chat_id)
-            if not update.message.text == None: # does_message_contain_text(update.message):# TODO check message type
+            if update.message.text != None: # does_message_contain_text(update.message):# TODO check message type
                 preview = context.bot.edit_message_text(
                     text = t,
                     chat_id = update.effective_message.chat_id,
                     message_id = msg_id.message_id,
                     reply_markup = InlineKeyboardMarkup(Keyboards.REACTIONS_KEYBOARD_FOR_DISPLAY)
                 )
-            elif not update.message.caption == None:
+            elif (update.message.animation != None) | (update.message.audio != None) | (update.message.document != None) | (len(update.message.photo) != 0)  | (update.message.video != None) | (update.message.voice != None):# (update.message.caption != None):
                 preview = context.bot.edit_message_caption(
                     caption = t,
                     chat_id = update.effective_message.chat_id,
@@ -87,7 +87,7 @@ def send_to_owner(update: Update, context: CallbackContext) -> int:
         key = Keyboards.APPROVAL_KEYBOARD
         key[1][0].text = context.user_data['PREVIEW_MSG_ID'] # Save the IDs into the text of the button
         key[2][0].text = context.user_data['CHAT_ID']
-        if ((context.user_data['MESSAGE'].text != None) | (context.user_data['MESSAGE'].caption != None)) & (context.user_data['MESSAGE'].forward_date == None): #does_message_contain_text(update.message):
+        if ((context.user_data['MESSAGE'].text != None) | (context.user_data['MESSAGE'].animation != None) | (context.user_data['MESSAGE'].audio != None) | (context.user_data['MESSAGE'].document != None) | (len(context.user_data['MESSAGE'].photo) != 0) | (context.user_data['MESSAGE'].video != None) | (context.user_data['MESSAGE'].voice != None)) & (context.user_data['MESSAGE'].forward_date == None): #does_message_contain_text(update.message):
             context.bot.copy_message(
                 chat_id = MY_ID,
                 from_chat_id = context.user_data['CHAT_ID'],
