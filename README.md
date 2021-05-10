@@ -3,8 +3,8 @@ A custom telegram channel bot built for my own channel. It supports post submiss
 
 Features:
 
-- Post submission for channel owner (with or without image, text, reaction buttons)
-- Post submission for outsiders (with or without image, text)
+- Post submission for channel owner (with or without reaction buttons)
+- Post submission for outsiders (with reaction buttons)
 - Post submission with forwarded messages
 - Text supports formatting features
 - Approval for post submissions from outsiders

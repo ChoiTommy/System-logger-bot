@@ -5,7 +5,6 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, ConversationHa
 from datetime import *
 # from dotenv import load_dotenv
 
-# TODO message entities
 # BUG no message previews for submitted posts due to the function copy_message()
 
 # Enable logging
@@ -40,8 +39,10 @@ def buttons_or_confirmation(update: Update, context: CallbackContext) -> int:
             text = ''
         elif update.message.text != None:
             text = update.message.text
+            entities = update.message.entities
         else:
             text = update.message.caption
+            entities = update.message.caption_entities
         t = f"""{text}
 - {update.effective_user.first_name} {'' if update.effective_user.last_name == None else update.effective_user.last_name}
 {datetime.now(timezone(timedelta(hours = 8))).strftime('%d/%m/%Y %H:%M:%S %Z')}"""
@@ -54,19 +55,21 @@ def buttons_or_confirmation(update: Update, context: CallbackContext) -> int:
             )
         else:
             msg_id = update.message.copy(chat_id = update.effective_message.chat_id)
-            if update.message.text != None: # does_message_contain_text(update.message):# TODO check message type
+            if update.message.text != None:
                 preview = context.bot.edit_message_text(
                     text = t,
                     chat_id = update.effective_message.chat_id,
                     message_id = msg_id.message_id,
-                    reply_markup = InlineKeyboardMarkup(Keyboards.REACTIONS_KEYBOARD_FOR_DISPLAY)
+                    reply_markup = InlineKeyboardMarkup(Keyboards.REACTIONS_KEYBOARD_FOR_DISPLAY),
+                    entities = entities
                 )
             elif (update.message.animation != None) | (update.message.audio != None) | (update.message.document != None) | (len(update.message.photo) != 0)  | (update.message.video != None) | (update.message.voice != None):# (update.message.caption != None):
                 preview = context.bot.edit_message_caption(
                     caption = t,
                     chat_id = update.effective_message.chat_id,
                     message_id = msg_id.message_id,
-                    reply_markup = InlineKeyboardMarkup(Keyboards.REACTIONS_KEYBOARD_FOR_DISPLAY)
+                    reply_markup = InlineKeyboardMarkup(Keyboards.REACTIONS_KEYBOARD_FOR_DISPLAY),
+                    caption_entities = entities
                 )
             else:
                 preview = update.message.reply_text(
