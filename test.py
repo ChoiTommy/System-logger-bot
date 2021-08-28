@@ -1,9 +1,11 @@
-import logging, os, Keyboards
+import logging
+import os
+import Keyboards
 
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardMarkup, ParseMode
 from telegram.ext import Updater, CommandHandler, MessageHandler, ConversationHandler, Filters, CallbackContext, CallbackQueryHandler
-from datetime import *
-# from dotenv import load_dotenv
+#from dotenv import load_dotenv
+from datetime import datetime, timedelta, timezone
 
 # BUG no message previews for submitted posts due to the function copy_message()
 
@@ -15,7 +17,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Load credentials from enviroment variables
-# load_dotenv()
+#load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 MY_USERNAME = os.getenv('MY_TG_HANDLE')
 MY_CHANNEL_ID = os.getenv('MY_CHANNEL_ID')
@@ -33,20 +35,18 @@ def buttons_or_confirmation(update: Update, context: CallbackContext) -> int:
             '❤Do you want to append reaction buttons to this post?',
             reply_markup = ReplyKeyboardMarkup(Keyboards.YES_NO, resize_keyboard = True)
         )
-        return 0
     else:
-        if (update.message.text == None) & (update.message.caption == None) | (update.message.forward_date != None):
+        if (update.message.text is None) & (update.message.caption is None) | (update.message.forward_date is not None):
             text = ''
         elif update.message.text != None:
             text = update.message.text
-            entities = update.message.entities
         else:
             text = update.message.caption
-            entities = update.message.caption_entities
+        entities = update.message.caption_entities
         t = f"""{text}
-- {update.effective_user.first_name} {'' if update.effective_user.last_name == None else update.effective_user.last_name}
+- {update.effective_user.first_name} {'' if update.effective_user.last_name is None else update.effective_user.last_name}
 {datetime.now(timezone(timedelta(hours = 8))).strftime('%d/%m/%Y %H:%M:%S %Z')}"""
-        if update.message.forward_date != None:
+        if update.message.forward_date is not None:
             m = update.message.forward(chat_id = update.effective_message.chat_id)
             preview = update.message.reply_text(
                 text = t,
@@ -55,7 +55,7 @@ def buttons_or_confirmation(update: Update, context: CallbackContext) -> int:
             )
         else:
             msg_id = update.message.copy(chat_id = update.effective_message.chat_id)
-            if update.message.text != None:
+            if update.message.text is not None:
                 preview = context.bot.edit_message_text(
                     text = t,
                     chat_id = update.effective_message.chat_id,
@@ -63,7 +63,7 @@ def buttons_or_confirmation(update: Update, context: CallbackContext) -> int:
                     reply_markup = InlineKeyboardMarkup(Keyboards.REACTIONS_KEYBOARD_FOR_DISPLAY),
                     entities = entities
                 )
-            elif (update.message.animation != None) | (update.message.audio != None) | (update.message.document != None) | (len(update.message.photo) != 0)  | (update.message.video != None) | (update.message.voice != None):# (update.message.caption != None):
+            elif (update.message.animation is not None) | (update.message.audio is not None) | (update.message.document is not None) | (len(update.message.photo) != 0)  | (update.message.video is not None) | (update.message.voice is not None):# (update.message.caption != None):
                 preview = context.bot.edit_message_caption(
                     caption = t,
                     chat_id = update.effective_message.chat_id,
@@ -84,13 +84,14 @@ def buttons_or_confirmation(update: Update, context: CallbackContext) -> int:
             reply_markup = ReplyKeyboardMarkup(Keyboards.YES_NO, resize_keyboard = True)
         )
         return 1
+    return 0
 
 def send_to_owner(update: Update, context: CallbackContext) -> int:
     if update.message.text == 'Yes':
         key = Keyboards.APPROVAL_KEYBOARD
         key[1][0].text = context.user_data['PREVIEW_MSG_ID'] # Save the IDs into the text of the button
         key[2][0].text = context.user_data['CHAT_ID']
-        if ((context.user_data['MESSAGE'].text != None) | (context.user_data['MESSAGE'].animation != None) | (context.user_data['MESSAGE'].audio != None) | (context.user_data['MESSAGE'].document != None) | (len(context.user_data['MESSAGE'].photo) != 0) | (context.user_data['MESSAGE'].video != None) | (context.user_data['MESSAGE'].voice != None)) & (context.user_data['MESSAGE'].forward_date == None): #does_message_contain_text(update.message):
+        if ((context.user_data['MESSAGE'].text is not None) | (context.user_data['MESSAGE'].animation is not None) | (context.user_data['MESSAGE'].audio is not None) | (context.user_data['MESSAGE'].document is not None) | (len(context.user_data['MESSAGE'].photo) != 0) | (context.user_data['MESSAGE'].video is not None) | (context.user_data['MESSAGE'].voice is not None)) & (context.user_data['MESSAGE'].forward_date is None): #does_message_contain_text(update.message):
             context.bot.copy_message(
                 chat_id = MY_ID,
                 from_chat_id = context.user_data['CHAT_ID'],
@@ -98,7 +99,7 @@ def send_to_owner(update: Update, context: CallbackContext) -> int:
                 reply_markup = InlineKeyboardMarkup(key)
             )
         else:
-            if context.user_data['MESSAGE'].forward_date != None:
+            if context.user_data['MESSAGE'].forward_date is not None:
                 msg = context.bot.forward_message(
                     chat_id = MY_ID,
                     from_chat_id = context.user_data['MESSAGE'].chat.id,
@@ -155,7 +156,7 @@ def confirmation_from_owner(update: Update, context: CallbackContext) -> int:
 
 def send_by_owner(update: Update, context: CallbackContext) -> int:
     if update.message.text == 'Yes':
-        if context.user_data['MESSAGE'].forward_date == None:
+        if context.user_data['MESSAGE'].forward_date is None:
             context.bot.copy_message(
                 chat_id = MY_CHANNEL_ID,
                 from_chat_id = context.user_data['MESSAGE'].chat.id,
@@ -185,19 +186,17 @@ def inline_buttons(update: Update, context: CallbackContext) -> None:
     # Perform actions when inline buttons are clicked
     query = update.callback_query
     query.answer() # CallbackQueries need to be answered, even if no notification to the user is needed
-    if query.data == '-1': # No action is performed
-        return
-    elif query.data == '1': # Approve a post submission
+    if query.data == '1': # Approve a post submission
         context.bot.edit_message_reply_markup( # Returning an approved feedback to the user
             chat_id = int(query.message.reply_markup.inline_keyboard[2][0].text),
             message_id = int(query.message.reply_markup.inline_keyboard[1][0].text),
             reply_markup = InlineKeyboardMarkup(Keyboards.APPROVED_KEYBOARD)
         )
         query.edit_message_reply_markup(reply_markup = InlineKeyboardMarkup(Keyboards.APPROVED_KEYBOARD))
-        if query.message.reply_to_message == None:
+        if query.message.reply_to_message is None:
             query.copy_message(MY_CHANNEL_ID, reply_markup = InlineKeyboardMarkup(Keyboards.REACTIONS_KEYBOARD), disable_notification = True)
         else:
-            if query.message.reply_to_message.forward_date != None:
+            if query.message.reply_to_message.forward_date is not None:
                 m = context.bot.forward_message(
                     chat_id = MY_CHANNEL_ID,
                     from_chat_id = query.message.reply_to_message.chat.id,
@@ -283,9 +282,9 @@ def main() -> None:
     # Register handler for command /howto
     dispatcher.add_handler(CommandHandler('howto', instruction))
 
-    '''# Start the Bot using polling
-    updater.start_polling()
-    updater.idle()'''
+    # Start the Bot using polling
+    #updater.start_polling()
+    #updater.idle()
 
     # Start listening to webhook
     updater.start_webhook(listen = "0.0.0.0",
