@@ -38,7 +38,7 @@ def buttons_or_confirmation(update: Update, context: CallbackContext) -> int:
     else:
         if (update.message.text is None) & (update.message.caption is None) | (update.message.forward_date is not None):
             text = ''
-        elif update.message.text != None:
+        elif update.message.text is not None:
             text = update.message.text
         else:
             text = update.message.caption
@@ -129,7 +129,7 @@ def send_to_owner(update: Update, context: CallbackContext) -> int:
 
 def confirmation_from_owner(update: Update, context: CallbackContext) -> int:
     context.user_data['WITH_REACTIONS'] = True if update.message.text == 'Yes' else False
-    if context.user_data['MESSAGE'].forward_date == None:
+    if context.user_data['MESSAGE'].forward_date is None:
         context.bot.copy_message(
             chat_id = context.user_data['MESSAGE'].chat.id,
             from_chat_id = context.user_data['MESSAGE'].chat.id,

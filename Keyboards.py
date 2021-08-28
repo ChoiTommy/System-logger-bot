@@ -1,17 +1,17 @@
 
 from telegram import InlineKeyboardButton
 
-'''
- This is a file that saves all constant keyboard layouts used in main.py.
 
- '1' corresponds to True and '0' corresponds to False.
- '-1' implies no action is performed if clicked.
+# This is a file that saves all constant keyboard layouts used in main.py.
 
- Callback data offsets:
- Post submissions: 0
- Forwarded post submissions: 100
- Reactions buttons: 1000
-'''
+# '1' corresponds to True and '0' corresponds to False.
+# '-1' implies no action is performed if clicked.
+
+# Callback data offsets:
+# Post submissions: 0
+# Forwarded post submissions: 100
+# Reactions buttons: 1000
+
 
 # Inline keyboard for channel owner to accept/reject post submissions
 APPROVAL_KEYBOARD = [

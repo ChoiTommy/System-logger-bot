@@ -1,6 +1,8 @@
 # System Logger Bot
 A custom telegram channel bot built for my own channel. It supports post submissions for both channel owner and channel subscribers. Optional reaction buttons can be appended to each channel post for engaging interaction with subscribers. 
 
+[![CodeFactor](https://www.codefactor.io/repository/github/choitommy/system-logger-bot/badge)](https://www.codefactor.io/repository/github/choitommy/system-logger-bot)
+
 Features:
 
 - Post submission for channel owner (with or without reaction buttons)
